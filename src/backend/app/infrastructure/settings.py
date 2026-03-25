@@ -22,6 +22,9 @@ class AppSettings:
     poll_interval_seconds: int
     request_timeout_seconds: float
     max_aircraft_returned: int
+    reader_default_limit: int
+    frontend_request_limit: int
+    frontend_refresh_interval_ms: int
     cassandra_contact_points: list[str]
     cassandra_port: int
     cassandra_keyspace: str
@@ -96,6 +99,24 @@ class AppSettings:
                 os.getenv(
                     "MAX_AIRCRAFT_RETURNED",
                     str(_cfg_get(config, ["backend", "collector", "max_aircraft_returned"], 10000)),
+                )
+            ),
+            reader_default_limit=int(
+                os.getenv(
+                    "READER_DEFAULT_LIMIT",
+                    str(_cfg_get(config, ["backend", "reader", "default_limit"], 200)),
+                )
+            ),
+            frontend_request_limit=int(
+                os.getenv(
+                    "FRONTEND_REQUEST_LIMIT",
+                    str(_cfg_get(config, ["frontend", "data_source", "request_limit"], 5000)),
+                )
+            ),
+            frontend_refresh_interval_ms=int(
+                os.getenv(
+                    "FRONTEND_REFRESH_INTERVAL_MS",
+                    str(_cfg_get(config, ["frontend", "data_source", "refresh_interval_ms"], 12000)),
                 )
             ),
             cassandra_contact_points=cassandra_contact_points,

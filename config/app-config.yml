@@ -35,6 +35,10 @@ backend:
       lon_min: -180
       lon_max: 180
 
+  reader:
+    # Default limit used when /api/states is called without query parameter.
+    default_limit: 10000
+
   cassandra:
     contact_points:
       - cassandra1

@@ -15,7 +15,10 @@ const gridServices = [
 
 const gridColorMap = new Map(gridServices.map((s) => [s.name, s.color]));
 
-const refreshIntervalMs = 12000;
+const readerBaseUrl = "http://localhost:8010";
+let requestLimit = 5000;
+let refreshIntervalMs = 12000;
+let refreshTimer = null;
 
 const defaultView = {
   center: [22, 8],
@@ -63,7 +66,7 @@ async function refreshAircraft() {
   statusChip.textContent = "Syncing flights...";
 
   try {
-    const response = await fetch("http://localhost:8010/api/states?limit=5000", {
+    const response = await fetch(`${readerBaseUrl}/api/states?limit=${requestLimit}`, {
       cache: "no-store",
     });
     if (!response.ok) {
@@ -115,6 +118,29 @@ async function refreshAircraft() {
   }
 }
 
+async function loadUiConfig() {
+  try {
+    const response = await fetch(`${readerBaseUrl}/api/ui-config`, {
+      cache: "no-store",
+    });
+    if (!response.ok) {
+      throw new Error(`ui-config: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const cfg = data?.data_source || {};
+
+    if (typeof cfg.request_limit === "number" && Number.isFinite(cfg.request_limit) && cfg.request_limit > 0) {
+      requestLimit = Math.floor(cfg.request_limit);
+    }
+    if (typeof cfg.refresh_interval_ms === "number" && Number.isFinite(cfg.refresh_interval_ms) && cfg.refresh_interval_ms > 0) {
+      refreshIntervalMs = Math.floor(cfg.refresh_interval_ms);
+    }
+  } catch (error) {
+    console.warn("Unable to load UI config, using defaults", error);
+  }
+}
+
 resetButton.addEventListener("click", () => {
   map.flyTo(defaultView.center, defaultView.zoom, {
     duration: 1,
@@ -130,5 +156,13 @@ setTimeout(() => {
   map.invalidateSize();
 }, 150);
 
-refreshAircraft();
-setInterval(refreshAircraft, refreshIntervalMs);
+async function initialize() {
+  await loadUiConfig();
+  await refreshAircraft();
+  if (refreshTimer) {
+    clearInterval(refreshTimer);
+  }
+  refreshTimer = setInterval(refreshAircraft, refreshIntervalMs);
+}
+
+initialize();

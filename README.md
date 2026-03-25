@@ -1,43 +1,129 @@
 # FlightTracker
 
-FlightTracker is a distributed flight-tracking platform with a write/read split:
+**FlightTracker** is a distributed system for ingesting, storing, and serving real-time global aircraft data at scale.
 
-- Collector services ingest OpenSky state vectors per world grid.
-- Collectors persist latest aircraft state to Cassandra.
-- A dedicated reader service serves frontend queries.
-- A Leaflet-based web UI renders global aircraft positions.
+It is designed to handle high-throughput ingestion workloads, isolate read and write concerns, and provide a foundation for time-series analysis and historical flight replay.
 
 ![FlightTracker Screenshot](doc/FlightTrackerScreenshot.png)
 
-## Current Architecture
+---
 
-```text
+## 🚀 Overview
+
+FlightTracker ingests live aircraft state vectors from the OpenSky Network and exposes them through a read-optimized API and interactive web UI.
+
+The system is built around a **write/read split architecture**, where ingestion and query workloads are decoupled to improve scalability and resilience.
+
+---
+
+## 🏗️ Architecture
+
+```
 OpenSky API (OAuth2)
         |
         v
-api1..api6 (collectors, grid-scoped)
+api1..api6 (collector services, grid-scoped)
         |
         v
 Cassandra cluster (cassandra1..3)
         |
         v
-api-read (reader API on :8010)
+api-read (read service)
         |
         v
-web (nginx static frontend on :8080)
+web (static frontend)
 ```
 
-## Service Roles
+### Key Characteristics
 
-- `api1..api6`: collector-only workers (`APP_MODE=collector`), no frontend data serving.
-- `api-read`: read service (`APP_MODE=reader`), serves `GET /api/states`.
-- `web`: static frontend that polls reader API and draws markers on the world map.
-- `cassandra1..3`: distributed datastore for latest aircraft state.
+- **Horizontally scalable ingestion**
+  - Collector services operate on geographic grid partitions
+  - New collectors can be added to increase throughput
 
-## Quick Start
+- **Write/Read separation**
+  - Collectors handle ingestion only
+  - Reader service is optimized for query workloads
+
+- **Distributed storage**
+  - Cassandra cluster enables high write throughput and horizontal scaling
+
+- **Stateless services**
+  - All application services can be scaled independently
+
+---
+
+## ⚙️ Service Roles
+
+- **api1..api6 (collectors)**
+  - Run in `APP_MODE=collector`
+  - Fetch aircraft state vectors from OpenSky
+  - Persist latest state to Cassandra
+  - Partition workload by geographic grid
+
+- **api-read (reader API)**
+  - Run in `APP_MODE=reader`
+  - Serves `GET /api/states`
+  - Optimized for low-latency reads
+
+- **web**
+  - Static frontend (Leaflet-based)
+  - Polls reader API and renders aircraft positions globally
+
+- **cassandra1..3**
+  - Distributed datastore cluster
+  - Stores aircraft state keyed by `icao24`
+
+---
+
+## 🧠 Design Decisions
+
+### Write/Read Split
+Separating ingestion from query handling:
+- prevents read spikes from impacting ingestion
+- enables independent scaling of collectors and API layer
+- reflects real-world CQRS-style system design
+
+---
+
+### Grid-Based Ingestion
+Collectors are scoped to geographic regions:
+- distributes API load across multiple workers
+- avoids rate limiting from upstream providers
+- enables horizontal scaling by adding more partitions
+
+---
+
+### Cassandra as Storage Layer
+Cassandra is used for its:
+- high write throughput
+- horizontal scalability
+- predictable partition access patterns
+
+Current model stores the **latest known state per aircraft (`icao24`)**, optimized for real-time queries.
+
+---
+
+## 📊 Data Model (Current)
+
+- **Primary key:** `icao24`
+- **Data stored:**
+  - position (lat/lon)
+  - velocity
+  - altitude
+  - timestamp
+
+This model prioritizes:
+- fast writes
+- efficient point lookups
+- low-latency reads for UI rendering
+
+---
+
+## ▶️ Quick Start
 
 ### 1. Configure credentials
-Create/update [config/credentials.json](config/credentials.json) with OpenSky OAuth2 client credentials:
+
+Create `config/credentials.json`:
 
 ```json
 {
@@ -46,36 +132,90 @@ Create/update [config/credentials.json](config/credentials.json) with OpenSky OA
 }
 ```
 
+---
+
 ### 2. Build and run
 
-```powershell
+```bash
 docker compose up -d --build
 ```
 
-### 3. Open services
+---
 
-- UI: `http://localhost:8080`
-- Reader health: `http://localhost:8010/health`
-- Reader states: `http://localhost:8010/api/states?limit=5`
+### 3. Access services
 
-## Configuration
+- UI: http://localhost:8080  
+- Reader health: http://localhost:8010/health  
+- Sample query: http://localhost:8010/api/states?limit=5  
 
-- Canonical config reference: [config/app-config.yml](config/app-config.yml)
-- Backend loads YAML defaults and allows environment overrides.
-- Secrets are loaded from env vars or [config/credentials.json](config/credentials.json).
+---
 
-## Documentation
+## ⚙️ Configuration
 
-Detailed docs are in [doc/README.md](doc/README.md):
+- Canonical config: `config/app-config.yml`
+- Environment variables override YAML defaults
+- Secrets loaded from:
+  - environment variables
+  - `config/credentials.json`
 
-- [doc/architecture.md](doc/architecture.md)
-- [doc/services.md](doc/services.md)
-- [doc/api.md](doc/api.md)
-- [doc/data-model.md](doc/data-model.md)
-- [doc/runtime-config.md](doc/runtime-config.md)
-- [doc/operations.md](doc/operations.md)
+---
 
-## Notes
+## 📈 Scaling Characteristics
 
-- Current Cassandra model stores latest known row per `icao24`.
-- For full historical replay, add an append-only history table keyed by time.
+- **Collectors**
+  - scale horizontally by adding more grid partitions
+  - ingestion throughput increases linearly with workers
+
+- **Cassandra**
+  - scales by adding nodes to the cluster
+  - distributes writes across partitions
+
+- **Reader API**
+  - can be replicated behind a load balancer
+
+---
+
+## 🧪 Failure & Resilience Considerations
+
+- Upstream API rate limits mitigated via distributed collectors
+- Stateless services allow rapid restart and scaling
+- Eventual consistency model aligns with real-time tracking use case
+- System tolerates partial data gaps (missing aircraft updates)
+
+---
+
+## 🗺️ Roadmap
+
+- [ ] **Historical flight replay (time-series model)**
+  - append-only Cassandra table keyed by time
+  - enable timeline scrubbing and playback
+
+- [ ] Streaming pipeline (e.g., Kafka) between ingestion and storage
+- [ ] WebSocket-based real-time updates (replace polling)
+- [ ] Aircraft-level analytics (speed, altitude trends)
+- [ ] Alerting (e.g., arrivals, delays, anomalies)
+
+---
+
+## 📚 Documentation
+
+Detailed documentation:
+
+- `doc/architecture.md`
+- `doc/services.md`
+- `doc/api.md`
+- `doc/data-model.md`
+- `doc/runtime-config.md`
+- `doc/operations.md`
+
+---
+
+## 🧩 Summary
+
+FlightTracker demonstrates:
+- distributed system design
+- ingestion pipeline architecture
+- workload isolation via write/read split
+- scalable data modeling with Cassandra
+
+It is designed as a foundation for **real-time analytics and time-series flight data exploration**.
