@@ -1,0 +1,130 @@
+# FlightTracker centralized configuration reference
+#
+# This file documents hardcoded/default values currently used in:
+# - src/backend/app/main.py
+# - src/app.js
+# - docker-compose.yml service env blocks
+#
+# Note: values are not auto-loaded yet; this is the source-of-truth template.
+
+version: 1
+
+backend:
+  # APP_MODE valid values: collector | reader
+  # collector: pulls from OpenSky and writes to Cassandra
+  # reader: serves data from Cassandra to frontend
+  app_mode_default: collector
+
+  opensky:
+    states_api_url: https://opensky-network.org/api/states/all
+    oauth_token_url: https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token
+    # OAuth2 client credentials are required.
+    # Provide via env vars OPENSKY_CLIENT_ID / OPENSKY_CLIENT_SECRET
+    # or mounted config/credentials.json with keys: clientId, clientSecret.
+    token_refresh_margin_seconds: 30
+
+  collector:
+    poll_interval_seconds: 10
+    request_timeout_seconds: 15
+    max_aircraft_returned: 10000
+    # Fallback values if grid env vars are not provided.
+    grid_defaults:
+      name: global
+      lat_min: -90
+      lat_max: 90
+      lon_min: -180
+      lon_max: 180
+
+  cassandra:
+    contact_points:
+      - cassandra1
+      - cassandra2
+      - cassandra3
+    port: 9042
+    keyspace: flighttracker
+    replication_factor: 3
+    table_latest_states: latest_states
+    # Table stores one latest row per icao24.
+
+frontend:
+  data_source:
+    # Reader API used by src/app.js
+    reader_states_url: http://localhost:8010/api/states
+    request_limit: 5000
+    refresh_interval_ms: 12000
+
+  map:
+    default_center:
+      lat: 22
+      lon: 8
+    default_zoom: 2
+    min_zoom: 2
+    max_bounds:
+      lat_min: -85
+      lat_max: 85
+      lon_min: -180
+      lon_max: 180
+    world_copy_jump: true
+    max_bounds_viscosity: 1
+
+  marker:
+    # Dot marker + heading line settings.
+    dot_radius: 7
+    dot_stroke_weight: 1
+    dot_stroke_color: "#8cf1ff"
+    dot_fill_default_color: "#ff8f3c"
+    dot_fill_opacity: 0.8
+    heading_line_length_km: 35
+    heading_line_weight: 2
+    heading_line_opacity: 0.9
+
+  colors_by_grid:
+    north_america: "#FF6B6B"
+    europe_atlantic: "#4ECDC4"
+    asia_pacific: "#FFE66D"
+    south_america: "#95E1D3"
+    africa_indian: "#C7CEEA"
+    australia_pacific: "#FFA07A"
+
+deployment:
+  reader_service:
+    container_name: flighttracker-api-read
+    host_port: 8010
+    container_port: 8000
+
+  collectors:
+    # 3x2 world grid from docker-compose.yml
+    - name: north_america
+      lat_min: 0
+      lat_max: 90
+      lon_min: -180
+      lon_max: -60
+    - name: europe_atlantic
+      lat_min: 0
+      lat_max: 90
+      lon_min: -60
+      lon_max: 60
+    - name: asia_pacific
+      lat_min: 0
+      lat_max: 90
+      lon_min: 60
+      lon_max: 180
+    - name: south_america
+      lat_min: -90
+      lat_max: 0
+      lon_min: -180
+      lon_max: -60
+    - name: africa_indian
+      lat_min: -90
+      lat_max: 0
+      lon_min: -60
+      lon_max: 60
+    - name: australia_pacific
+      lat_min: -90
+      lat_max: 0
+      lon_min: 60
+      lon_max: 180
+
+notes:
+  - Units: lat/lon are degrees, heading is degrees, speed m/s, altitude meters.
+  - If you want this file to drive runtime config, next step is loading it in backend and frontend build/runtime.

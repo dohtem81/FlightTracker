@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FlightTracker | Global Airspace View</title>
+    <meta
+      name="description"
+      content="FlightTracker main website with a live world map canvas for global aviation visualization."
+    />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Bricolage+Grotesque:wght@500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="background-glow" aria-hidden="true"></div>
+    <div class="grain" aria-hidden="true"></div>
+
+    <main class="app-root">
+      <section class="map-shell" aria-label="World map">
+        <div id="map" role="application" aria-label="Interactive world map"></div>
+      </section>
+
+      <header class="hero">
+        <p class="eyebrow">FlightTracker</p>
+        <h1>Global Airspace at a Glance</h1>
+        <p class="subtitle">
+          Main website shell with an interactive world map. Ready for real-time
+          aircraft overlays and timeline replay.
+        </p>
+        <div class="hero-actions">
+          <button id="reset-view" type="button">Reset World View</button>
+          <label class="color-toggle">
+            <input type="checkbox" id="color-mode-toggle" />
+            <span>Color by Grid</span>
+          </label>
+          <span class="status-chip" id="map-status">Map Ready</span>
+        </div>
+      </header>
+    </main>
+
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+    <script src="app.js"></script>
+  </body>
+</html>
