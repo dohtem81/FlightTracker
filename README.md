@@ -7,6 +7,8 @@ FlightTracker is a distributed flight-tracking platform with a write/read split:
 - A dedicated reader service serves frontend queries.
 - A Leaflet-based web UI renders global aircraft positions.
 
+![FlightTracker Screenshot](doc/FlightTrackerScreenshot.png)
+
 ## Current Architecture
 
 ```text
